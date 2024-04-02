@@ -1,30 +1,27 @@
 import {Component} from "./base/Component";
-import {IProductItem} from "../types";
-import {bem, createElement, ensureElement} from "../utils/utils";
-import { isNull } from "lodash";
+import {ICard, IActions} from "../types";
+import { ensureElement } from "../utils/utils";
 
-interface ICardActions {
-    onClick: (event: MouseEvent) => void;
-}
-
-export interface ICard<T> {
-    title: string;
-    price: number;
-    image?: string;
-    category?: string;
-    description?: string;
-}
-
-export class Card<T> extends Component<ICard<T>> {
+export class Card extends Component<ICard> {
     protected _title: HTMLElement;
-    protected _price: HTMLElement;
+    protected _image?: HTMLImageElement;
+    protected _description?: HTMLElement;
     protected _button?: HTMLButtonElement;
+    protected _category: HTMLElement;
+    protected _price: HTMLElement;
+    protected _count?: HTMLElement;
 
-    constructor(protected blockName: string, container: HTMLElement, actions?: ICardActions) {
+    constructor( container: HTMLElement, actions?: IActions) {
         super(container);
-        this._title = ensureElement<HTMLElement>(`.${blockName}__title`, container);
-        this._price = ensureElement<HTMLElement>(`.${blockName}__price`, container);
-        this._button = container.querySelector(`.${blockName}__button`);
+
+        this._title = container.querySelector('.card__title');
+        this._image = container.querySelector('.card__image');
+        this._button = container.querySelector(`.card__button`);
+        this._description = container.querySelector(`.card__text`);
+        this._category = container.querySelector('.card__category');
+        this._price = container.querySelector('.card__price');
+        this._count = container.querySelector('.basket__item-index');
+
 
         if (actions?.onClick) {
             if (this._button) {
@@ -51,70 +48,43 @@ export class Card<T> extends Component<ICard<T>> {
         return this._title.textContent || '';
     }
 
-    set price(value: number) {
-        if(isNull(value)) {value = 0}
-        this.setText(this._price, String(value) + ' синапсов');
+    set image(value: string) {
+        this.setImage(this._image, value, this.title)
     }
-}
 
-export class CardCatalog<T> extends Card<T> {
-    protected _title: HTMLElement;
-    protected _price: HTMLElement;
-    protected _image: HTMLImageElement;
-    protected _category: HTMLElement;
-    protected _description?: HTMLElement;
-    protected _button?: HTMLButtonElement;
-
-    constructor(protected blockName: string, container: HTMLElement, actions?: ICardActions) {
-        super('card', container);
-        this._title = ensureElement<HTMLElement>(`.${blockName}__title`, container);
-        this._price = ensureElement<HTMLElement>(`.${blockName}__price`, container);
-        this._image = ensureElement<HTMLImageElement>(`.${blockName}__image`, container);
-        this._category = ensureElement<HTMLElement>(`.${blockName}__category`, container);
-        this._button = container.querySelector(`.${blockName}__button`);
-
-        if (actions?.onClick) {
-            if (this._button) {
-                this._button.addEventListener('click', actions.onClick);
-            } else {
-                container.addEventListener('click', actions.onClick);
-            }
+    set description(value: string | string[]) {
+        if (Array.isArray(value)) {
+            this._description.replaceWith(...value.map(str => {
+                const descTemplate = this._description.cloneNode() as HTMLElement;
+                this.setText(descTemplate, str);
+                return descTemplate;
+            }));
+        } else {
+            this.setText(this._description, value);
         }
     }
 
-    set image(value: string) {
-        this.setImage(this._image, value, this.title)
+
+    set button(value: string) {
+        this.setText(this._button, value);
+    }
+
+    set buttonText(value: string) {
+        if (this._button) {
+            this._button.textContent = value;
+        }
     }
 
     set category(value: string) {
         this.setText(this._category, value);
     }
 
-    get category(): string {
-        return this._category.textContent || '';
+    set price(value: number | null) {
+        value === null ? this.setText(this._price, 'Бесценно') : this.setText(this._price, `${value.toString()} синапсов`);
     }
     
+    get price(): number {
+        return Number(this._price.textContent || '');
+    }
+
 }
-
-export class CardItem<T> extends Card<T> {
-    protected _title: HTMLElement;
-    protected _price: HTMLElement;
-    protected _image: HTMLImageElement;
-    protected _category: HTMLElement;
-    protected _description?: HTMLElement;
-    protected _button?: HTMLButtonElement;
-
-    constructor(protected blockName: string, container: HTMLElement, actions?: ICardActions) {
-        super('card', container, actions);
-        this._description = ensureElement<HTMLElement>(`.${blockName}__text`, container);
-    }
-
-    set description(value: string) {
-        this.setText(this._description, value);
-    }
-
-    get description(): string {
-        return this._description.textContent || '';
-    }
-}
-

@@ -1,83 +1,87 @@
-import _ from "lodash";
-
 import {Model} from "./base/Model";
-import {FormErrors, IAppState, IProductItem, IOrder, IOrderForm} from "../types";
+import { IAppState, IOrderForm, FormErrors, IDeliveryForm, IContactsForm, ICard } from "../types";
 
 export type CatalogChangeEvent = {
-    catalog: ProductItem[]
+    catalog: ICard[]
 };
 
-export class ProductItem extends Model<IProductItem> {
-    catalog: ProductItem[];
-    id: string;
-    description: string;
-    image: string;
-    title: string;
-    category: string;
-    price: number;
-
-    getClosedProducts(): ProductItem[] {
-        return this.catalog
-    }
-}
-
 export class AppState extends Model<IAppState> {
-    basket: ProductItem[] = [];
-    catalog: ProductItem[];
-    loading: boolean;
-    order: IOrder = {
+    basket: ICard[] = [];
+    catalog: ICard[];
+    order: IOrderForm = {
+        payment: 'online',
+        address: '',
         email: '',
         phone: '',
-        items: []
+        total: 0,
+        items: [],
     };
     preview: string | null;
     formErrors: FormErrors = {};
 
-    toggleOrderedLot(id: string, isIncluded: boolean) {
-        if (isIncluded) {
-            this.order.items = _.uniq([...this.order.items, id]);
-        } else {
-            this.order.items = _.without(this.order.items, id);
+
+    addToBasket(item: ICard) {
+        if (item.price !== null && this.basket.indexOf(item) === -1) {
+            this.basket.push(item);
+            this.emitChanges('count:changed', this.basket);
+            this.emitChanges('basket:changed', this.basket);
         }
     }
 
-    getTotal() {
-        return this.basket.length
+    removeFromBasket(item: ICard) {
+        const index = this.basket.indexOf(item);
+        if (index !== -1) {
+            this.basket.splice(index, 1);
+        }
     }
 
-    setCatalog(items: IProductItem[]) {
-        this.catalog = items.map(item => new ProductItem(item, this.events));
+
+    clearBasket() {
+        this.basket = [];
+        this.emitChanges('count:changed', this.basket);
+        this.emitChanges('basket:changed', this.basket);
+    }
+
+
+
+    setDelivery(field: keyof IDeliveryForm, value: string) {
+        this.order[field] = value;
+
+        if (this.validateDelivery()) {
+            this.events.emit('delivery:ready', this.order);
+        }
+    }
+
+    setContacts(field: keyof IContactsForm, value: string) {
+        this.order[field] = value;
+
+        if (this.validateContacts()) {
+            this.events.emit('contacts:ready', this.order);
+        }
+    }
+
+
+    setCatalog(items: ICard[]) {
+        this.catalog = items;
         this.emitChanges('items:changed', { catalog: this.catalog });
     }
 
-
-    getBasket() {
-        return this.basket
-    }
-
-    setBasket(item: ProductItem) {
-        if (!this.basket.length) {
-            this.basket.push(item)
-        } else {
-            this.basket.forEach(product => {product.id !== item.id && this.basket.push(item)})
-        }
-        this.emitChanges('total:update', this.basket);
-    }
-
-    setPreview(item: ProductItem) {
+    setPreview(item: ICard) {
         this.preview = item.id;
         this.emitChanges('preview:changed', item);
     }
 
-    setOrderField(field: keyof IOrderForm, value: string) {
-        this.order[field] = value;
-
-        if (this.validateOrder()) {
-            this.events.emit('order:ready', this.order);
+    validateDelivery() {
+        const errors: typeof this.formErrors = {};
+        if (!this.order.address) {
+            errors.address = 'Необходимо указать адрес доставки';
         }
+        this.formErrors = errors;
+        this.events.emit('formErrors:change', this.formErrors);
+        return Object.keys(errors).length === 0;
     }
 
-    validateOrder() {
+    validateContacts() {
         const errors: typeof this.formErrors = {};
         if (!this.order.email) {
             errors.email = 'Необходимо указать email';
