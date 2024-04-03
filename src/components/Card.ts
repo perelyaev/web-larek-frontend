@@ -1,90 +1,112 @@
-import {Component} from "./base/Component";
-import {ICard, IActions} from "../types";
-import { ensureElement } from "../utils/utils";
+import { Component } from './base/Component';
+import { ensureElement } from '../utils/utils';
+import { TCardActions, ICardView, TCard, TDictCategoryCard } from '../types';
 
-export class Card extends Component<ICard> {
-    protected _title: HTMLElement;
-    protected _image?: HTMLImageElement;
-    protected _description?: HTMLElement;
-    protected _button?: HTMLButtonElement;
-    protected _category: HTMLElement;
-    protected _price: HTMLElement;
-    protected _count?: HTMLElement;
+export class Card extends Component<TCard> implements ICardView {
+	protected _title: HTMLElement;
+	protected _image?: HTMLImageElement;
+	protected _price: HTMLSpanElement;
+	protected _category?: HTMLSpanElement;
+	protected _description?: HTMLParagraphElement;
+	protected _button?: HTMLButtonElement;
+	protected _statusBtn: boolean;
 
-    constructor( container: HTMLElement, actions?: IActions) {
-        super(container);
+	constructor(
+		container: HTMLElement,
+		actions: TCardActions,
+		protected blockName: string = 'card'
+	) {
+		super(container);
 
-        this._title = container.querySelector('.card__title');
-        this._image = container.querySelector('.card__image');
-        this._button = container.querySelector(`.card__button`);
-        this._description = container.querySelector(`.card__text`);
-        this._category = container.querySelector('.card__category');
-        this._price = container.querySelector('.card__price');
-        this._count = container.querySelector('.basket__item-index');
+		this._title = ensureElement<HTMLElement>(`.${blockName}__title`, container);
+		this._image = container.querySelector(`.${blockName}__image`);
+		this._price = ensureElement<HTMLSpanElement>(
+			`.${blockName}__price`,
+			container
+		);
+		this._category = container.querySelector(`.${blockName}__category`);
+		this._description = container.querySelector(
+			`.${blockName}__text`
+		) as HTMLParagraphElement;
+		this._button = container.querySelector(`.${blockName}__button`);
+		if (actions?.onClick) {
+			if (this._button) {
+				this._button.addEventListener('click', actions.onClick);
+			} else {
+				container.addEventListener('click', actions.onClick);
+			}
+			if (this.statusBtn) this.setDisabled(this._button, this._statusBtn);
+		}
+	}
 
+	get button(): HTMLButtonElement {
+		return this._button;
+	}
 
-        if (actions?.onClick) {
-            if (this._button) {
-                this._button.addEventListener('click', actions.onClick);
-            } else {
-                container.addEventListener('click', actions.onClick);
-            }
-        }
-    }
+	get statusBtn(): boolean {
+		return this._statusBtn;
+	}
+	set statusBtn(value: boolean) {
+		this._statusBtn = value;
+	}
 
-    set id(value: string) {
-        this.container.dataset.id = value;
-    }
+	set title(value: string) {
+		this.setText(this._title, value);
+	}
 
-    get id(): string {
-        return this.container.dataset.id || '';
-    }
+	get title(): string {
+		return this._title.textContent || '';
+	}
 
-    set title(value: string) {
-        this.setText(this._title, value);
-    }
+	set image(value: string) {
+		this.setImage(this._image, value, this.title);
+	}
 
-    get title(): string {
-        return this._title.textContent || '';
-    }
+	get price(): string {
+		return this._price.textContent || '';
+	}
 
-    set image(value: string) {
-        this.setImage(this._image, value, this.title)
-    }
+	set price(value: string) {
+		if (value === null) this.setPrice(this._price, 'Бесценно');
+		else this.setPrice(this._price, `${value} синапсов`);
+	}
 
-    set description(value: string | string[]) {
-        if (Array.isArray(value)) {
-            this._description.replaceWith(...value.map(str => {
-                const descTemplate = this._description.cloneNode() as HTMLElement;
-                this.setText(descTemplate, str);
-                return descTemplate;
-            }));
-        } else {
-            this.setText(this._description, value);
-        }
-    }
+	get category(): string {
+		return this._category.textContent || '';
+	}
 
+	set category(value: string) {
+		this.setCategory(this._category, value);
+	}
 
-    set button(value: string) {
-        this.setText(this._button, value);
-    }
+	get description(): string {
+		return this._category.textContent || '';
+	}
 
-    set buttonText(value: string) {
-        if (this._button) {
-            this._button.textContent = value;
-        }
-    }
+	set description(value: string) {
+		this.setDescription(this._description, value);
+	}
 
-    set category(value: string) {
-        this.setText(this._category, value);
-    }
+	protected setImage(element: HTMLImageElement, src: string, alt?: string) {
+		if (element) {
+			element.src = src;
+			if (alt) element.alt = alt;
+		}
+	}
 
-    set price(value: number | null) {
-        value === null ? this.setText(this._price, 'Бесценно') : this.setText(this._price, `${value.toString()} синапсов`);
-    }
-    
-    get price(): number {
-        return Number(this._price.textContent || '');
-    }
+	protected setPrice(element: HTMLSpanElement, value: unknown) {
+		if (element) element.textContent = String(value);
+	}
 
+	protected setCategory(element: HTMLSpanElement, value: unknown) {
+		if (element) element.textContent = String(value);
+	}
+
+	protected setDescription(element: HTMLSpanElement, value: unknown) {
+		if (element) element.textContent = String(value);
+	}
+
+	setCategoryCard(value: string) {
+		this.addStyleClass(this._category, TDictCategoryCard.get(value));
+	}
 }

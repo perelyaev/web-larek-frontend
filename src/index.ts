@@ -1,253 +1,213 @@
 import './scss/styles.scss';
-
-import { LarekAPI } from "./components/LarekAPI";
-import {API_URL, CDN_URL, } from "./utils/constants";
-import {EventEmitter} from "./components/base/Events";
-import {AppState, CatalogChangeEvent} from "./components/AppData";
-import {Page} from "./components/Page";
-import {cloneTemplate, ensureElement } from "./utils/utils";
-import {Modal} from "./components/common/Modal";
-import {Basket} from "./components/common/Basket";
-import { IDeliveryForm, IContactsForm, ICard} from "./types";
-import { DeliveryForm, ContactsForm, PaymentMethod } from "./components/Order";
-import {Success} from "./components/common/Success";
-import { Card } from './components/Card';
+import { EventEmitter } from './components/base/Events';
+import { API_URL, CDN_URL} from './utils/constants';
+import { StoreAPI } from './components/StoreAPI';
+import { AppState } from './components/AppData';
+import { Page } from './components/Page';
+import { ensureElement, cloneTemplate } from './utils/utils';
+import { ICatalogItem, IBasketItem, TUpdateCounter } from './types';
+import { Card as CatalogItem, Card as BasketItem } from './components/Card';
+import { Modal } from './components/Modal';
+import { Basket } from './components/Basket';
+import { Order } from './components/Order';
+import { Contacts } from './components/Contacts';
+import { Success } from './components/Success';
 
 const events = new EventEmitter();
-const api = new LarekAPI(CDN_URL, API_URL);
+const api = new StoreAPI(CDN_URL, API_URL);
+const appData = new AppState(events);
 
-// Чтобы мониторить все события, для отладки
-events.onAll(({ eventName, data }) => {
-    console.log(eventName, data);
-})
+const page = new Page(document.body, {
+	onClick: (event) => events.emit('basket:open', event),
+});
+const modal = new Modal(ensureElement<HTMLElement>('#modal-container'), events);
 
-// Все шаблоны
+// templates
 const cardCatalogTemplate = ensureElement<HTMLTemplateElement>('#card-catalog');
 const cardPreviewTemplate = ensureElement<HTMLTemplateElement>('#card-preview');
-const cardBasketTemplate = ensureElement<HTMLTemplateElement>('#card-basket');
 const basketTemplate = ensureElement<HTMLTemplateElement>('#basket');
-const deliveryTemplate = ensureElement<HTMLTemplateElement>('#order');
+const itemBasketTemplate = ensureElement<HTMLTemplateElement>('#card-basket');
+const orderTemplate = ensureElement<HTMLTemplateElement>('#order');
 const contactsTemplate = ensureElement<HTMLTemplateElement>('#contacts');
 const successTemplate = ensureElement<HTMLTemplateElement>('#success');
 
-// Модель данных приложения
-const appData = new AppState({}, events);
-
-// Глобальные контейнеры
-const page = new Page(document.body, events);
-const modal = new Modal(ensureElement<HTMLElement>('#modal-container'), events);
-
-// Переиспользуемые части интерфейса
-const basket = new Basket(cloneTemplate(basketTemplate), events);
-const delivery = new DeliveryForm(cloneTemplate(deliveryTemplate), events, {
-    onClick: (event: Event) => { events.emit('payment:changed', event.target)}
-});
-const contacts = new ContactsForm(cloneTemplate(contactsTemplate), events);
-
-// Дальше идет бизнес-логика
-// Поймали событие, сделали что нужно
-
-// Изменились элементы каталога
-events.on<CatalogChangeEvent>('items:changed', () => {
-    page.catalog = appData.catalog.map(item => {
-        const card = new Card(cloneTemplate(cardCatalogTemplate), {
-            onClick: () => events.emit('card:select', item)
-        });
-        return card.render({
-            title: item.title,
-            image: item.image,
-            category: item.category,
-            price: item.price
-        });
-    });
-
+const basket = new Basket(cloneTemplate(basketTemplate), {
+	onClick: () => events.emit('order:open'),
 });
 
+// show items on main page
+events.on('items:changed', () => {
+	page.catalog = appData.catalog.map((item) => {
+		const card = new CatalogItem(cloneTemplate(cardCatalogTemplate), {
+			onClick: () => events.emit('preview:changed', item),
+		});
+		card.setCategoryCard(item.category);
+		return card.render({
+			title: item.title,
+			image: item.image,
+			price: item.price,
+			category: item.category,
+		});
+	});
+});
 
+// show item when selected
+events.on('preview:changed', (item: ICatalogItem) => {
+	const card = new CatalogItem(cloneTemplate(cardPreviewTemplate), {
+		onClick: () => events.emit('basket:changed', item),
+	});
+	card.button.disabled = item.status;
+	card.setCategoryCard(item.category);
+	modal.render({
+		content: card.render({
+			title: item.title,
+			image: item.image,
+			category: item.category,
+			price: item.price,
+			description: item.description,
+			statusBtn: item.status,
+		}),
+	});
+});
 
-// Открытие корзины
+// show cart
 events.on('basket:open', () => {
-    modal.render({
-        content: basket.render({})
-    })
-})
-
-// Открытие карточки
-events.on('card:select', (item: ICard) => {
-    appData.setPreview(item);
-})
-
-events.on('preview:changed', (item: ICard) => {
-    const card = new Card(cloneTemplate(cardPreviewTemplate), {
-      onClick: () => {
-        events.emit('item:check', item);
-        card.buttonText = appData.basket.indexOf(item) === -1 ? 'В корзину' : 'Убрать из корзины';
-      }
-    })
-  
-    modal.render({
-      content: card.render({
-        category: item.category,
-        title: item.title,
-        image: item.image,
-        description: item.description,
-        price: item.price,
-        buttonText: appData.basket.indexOf(item) === -1 ? 'В корзину' : 'Убрать из корзины',
-      })
-    })
+	appData.setBasketPreview();
+	basket.price = appData.getTotal();
+	modal.render({ content: basket.render() });
 });
 
-
-// Добавить в корзину
-events.on('item:add', (item: ICard) => {
-    appData.addToBasket(item);
-})
-
-// Удаление из корзины
-events.on('item:remove', (item: ICard) => {
-    appData.removeFromBasket(item);
-})
-
-// Проверка товара в корзине
-events.on('item:check', (item: ICard) => {
-    (appData.basket.indexOf(item) === -1) ?
-    events.emit('item:add', item) : events.emit('item:remove', item);
-})
-
-// Обновление корзины
-events.on('basket:changed', (items: ICard[]) => {
-    basket.items = items.map((item, count) => {
-      const card = new Card(cloneTemplate(cardBasketTemplate), {
-        onClick: () => {events.emit('item:remove', item)}
-      });
-      return card.render({
-        title: item.title,
-        price: item.price,
-        count: (count++).toString(),
-      });
-    });
-    let total = 0;
-    items.forEach(item => {
-      total = total + item.price;
-    });
-    basket.total = total;
-    appData.order.total = total;
+// show cart item in shopping cart
+events.on('basket:preview', (basketState: TUpdateCounter) => {
+	basket.items = appData.basketItems.map((item) => {
+		const basketItem = new BasketItem(cloneTemplate(itemBasketTemplate), {
+			onClick: () => events.emit('basket:remove', item),
+		});
+		return basketItem.render({
+			title: item.title,
+			price: item.price,
+		});
+	});
+	basket.setOrderButton(basketState.count);
+	basket.setOrderIndex();
 });
 
-// Счетчик товаров в корзине
-events.on('count:changed', () => {
-    page.counter = appData.basket.length;
-})
+// add item to cart
+events.on('basket:changed', (item: ICatalogItem) => {
+	if (!item.status) {
+		appData.addItemBasket(item);
+		modal.toggleBasketBtn(item.status);
+	}
+});
 
+// remove item from cart
+events.on('basket:remove', (item: IBasketItem) => {
+	appData.removeBasketItem(item);
+	appData.setBasketPreview();
+});
 
-// Форма доставки
+// picking payment type when making order
+const order = new Order(cloneTemplate(orderTemplate), events, {
+	onClickPayment: (event: Event) => {
+		const paymentType = (event.target as HTMLElement).getAttribute('name');
+		appData.setPaymentType(paymentType);
+		order.setStyleBorder(paymentType);
+		order.setNextToggle(appData.isOrderValid());
+	},
+});
+
+// open order
 events.on('order:open', () => {
-    modal.render({
-      content: delivery.render({
-        payment: '',
-        address: '',
-        valid: false,
-        errors: [],
-      })
-    });
+	modal.render({
+		content: order.render({
+			address: '',
+			valid: appData.isOrderValid(),
+			errors: [],
+		}),
+	});
 });
 
-// Способ оплаты
-events.on('payment:changed', (target: HTMLElement) => {
-    if(!target.classList.contains('button_alt-active')) {
-      delivery.changePayment();
-      appData.order.payment = PaymentMethod[target.getAttribute('name')];
-    };
+// when order input changes
+events.on('order.address:change', () => {
+	appData.setAddress(order.address);
+	order.setNextToggle(appData.isOrderValid());
 });
 
-// Изменения доставки
-events.on(/^order\..*:change/, (data: { field: keyof IDeliveryForm, value: string }) => {
-    appData.setDelivery(data.field, data.value);
+// when errors validation occures
+events.on('orderErrors:change', (errors: Record<string, string>) => {
+	if (errors) order.errors = `${errors.payment || ''} ${errors.address || ''}`;
+	else order.errors = '';
 });
 
-
-//Валидация формы ввода адреса
-events.on('deliveryForm:changed', (errors: Partial<IDeliveryForm>) => {
-    const { payment, address } = errors;
-    delivery.valid = !payment && !address;
-    delivery.errors = Object.values({payment, address}).filter(i => !!i).join('; ');
-  });
-  
-
-// Валидация доставки
-events.on('delivery:ready' , () => {
-    delivery.valid = true;
+events.on('contactsErrors:change', (errors: Record<string, string>) => {
+	if (errors) contacts.errors = `${errors.email || ''} ${errors.phone || ''}`;
+	else order.errors = '';
 });
 
-// Форма контактов
+// clicking submit order
 events.on('order:submit', () => {
-    modal.render({
-      content: contacts.render({
-        email: '',
-        phone: '',
-        valid: false,
-        errors: [],
-      })
-    });
-    appData.order.items = appData.basket.map((item) => item.id);
+	modal.render({
+		content: contacts.render({
+			email: '',
+			phone: '',
+			valid: appData.isContactsValid(),
+			errors: [],
+		}),
+	});
 });
 
-//Изменения в полях ввода контактов
-events.on(/^contacts\..*:change/, (data: {field: keyof IContactsForm, value: string}) => {
-    appData.setContacts(data.field, data.value)
-})
-  
-//Валидация формы ввода контактов
-events.on('contacts:changed', (errors: Partial<IContactsForm>) => {
-    const { email, phone } = errors;
-    contacts.valid = !email && !phone;
-    contacts.errors = Object.values({email, phone}).filter(i => !!i).join('; ');
-});
-  
-//Валидация формы контактов выполнена
-events.on('contacts:ready' , () => {
-    contacts.valid = true;
-});
-
-// Оформление заказа
-events.on('contacts:submit', () => {
-    api.orderItems(appData.order)
-      .then((result) => {
-        
-        const success = new Success(cloneTemplate(successTemplate), {
-            onClick: () => {
-                modal.close();
-                appData.clearBasket();
-                console.log ('Работает')
-            }
-        });
-        success.total = result.total.toString();
-  
-        modal.render({
-            content: success.render({})
-        });
-      })
-      .catch(err => {
-          console.error(err);
-          console.log('не работает')
-      });
-  })
-
-
-
-// Блокируем прокрутку страницы если открыта модалка
-events.on('modal:open', () => {
-    page.locked = true;
+// placing an order
+const contacts = new Contacts(cloneTemplate(contactsTemplate), events, {
+	onClick: () => {
+		appData.createOrder();
+		api
+			.orderItems(appData.order)
+			.then((response) => {
+				console.log(response);
+				appData.clearAllItems();
+				events.emit('success');
+			})
+			.catch((error) => {
+				events.emit('basket:open');
+				console.error(error);
+			});
+	},
 });
 
-// ... и разблокируем после закрытия модалки
-events.on('modal:close', () => {
-    page.locked = false;
+// listening changes in contacts
+events.on(/^contacts\..*:change/, () => {
+	appData.setPhone(contacts.phone);
+	appData.setEmail(contacts.email);
+	contacts.setNextToggle(appData.isContactsValid());
+	appData.isContactsValid();
 });
 
-// Получаем лоты с сервера
-api.getCardList()
-    .then(appData.setCatalog.bind(appData))
-    .catch(err => {
-        console.error(err);
+// listening for successful server response
+events.on('success', () => {
+	const success = new Success(cloneTemplate(successTemplate), {
+		onClick: () => {
+			events.emit('items:changed');
+			modal.close();
+		},
+	});
+	modal.render({
+		content: success.render({
+			totalPrice: appData.getTotal(),
+		}),
+	});
 });
+
+// open close modal window
+events.on('modal:open', () => (page.locked = true));
+events.on('modal:close', () => (page.locked = false));
+
+// updating cart counter in header on main
+events.on('basket:updateCounter', (count: TUpdateCounter) => {
+	page.basketCounter = count;
+});
+
+// fetch items
+api
+	.getCatalogList()
+	.then(appData.setCatalog.bind(appData))
+	.catch((error) => console.log(error));

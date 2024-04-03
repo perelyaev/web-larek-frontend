@@ -1,53 +1,47 @@
-import {Form} from "./common/Form";
-import {IDeliveryForm, IContactsForm, IActions} from "../types";
-import {IEvents} from "./base/Events";
-import { ensureElement } from "../utils/utils";
+import { IOrderView, TOrderActions, TOrderForm } from '../types';
+import { Form } from './Form';
+import { IEvents } from './base/Events';
 
-export class ContactsForm extends Form<IContactsForm> {
+export class Order extends Form<TOrderForm> implements IOrderView {
+	protected _cash: HTMLButtonElement;
+	protected _card: HTMLButtonElement;
+	protected _paymentTypes: HTMLElement[];
+	protected _address: HTMLElement[];
 
+	constructor(
+		container: HTMLFormElement,
+		events: IEvents,
+		actions: TOrderActions
+	) {
+		super(container, events);
 
-    constructor(container: HTMLFormElement, events: IEvents) {
-        super(container, events);
-    }
+		this._cash = this.container.cash;
+		this._card = this.container.card;
+		this._paymentTypes = [this._cash, this._card];
 
-    set phone(value: string) {
-        (this.container.elements.namedItem('phone') as HTMLInputElement).value = value;
-    }
+		if (actions.onClickPayment) {
+			this._card.addEventListener('click', actions.onClickPayment);
+			this._cash.addEventListener('click', actions.onClickPayment);
+		}
+		this.valid = false;
+	}
 
-    set email(value: string) {
-        (this.container.elements.namedItem('email') as HTMLInputElement).value = value;
-    }
+	get address() {
+		return this.container.address.value;
+	}
+
+	set address(value: string) {
+		this.container.address.value = value;
+	}
+
+	setNextToggle(state: boolean) {
+		this.valid = state;
+	}
+
+	setStyleBorder(paymentType: string) {
+		this._paymentTypes.forEach((button) =>
+			this.removeStyleClass(button, 'button_alt-active')
+		);
+		this.addStyleClass(this.container[paymentType], 'button_alt-active');
+	}
 }
-
-export const PaymentMethod: { [key: string]: string } = {
-    "card": "online",
-    "cash": "cash",
-}
-
-export class DeliveryForm extends Form<IDeliveryForm> {
-    protected _cardButton: HTMLButtonElement;
-    protected _cashButton: HTMLButtonElement;
-
-    constructor(container: HTMLFormElement, events: IEvents, actions: IActions) {
-        super(container, events)
-
-        this._cardButton = ensureElement<HTMLButtonElement>('button[name="card"]', this.container);
-        this._cashButton = ensureElement<HTMLButtonElement>('button[name="cash"]', this.container);
-        this._cardButton.classList.add('button_alt-active');
-
-        if (actions.onClick) {
-            this._cardButton.addEventListener('click', actions.onClick);
-            this._cashButton.addEventListener('click', actions.onClick);
-        };
-    };
-
-    set address(value: string) {
-        (this.container.elements.namedItem('address') as HTMLInputElement).value = value;
-    };
-
-    changePayment() {
-        this._cardButton.classList.toggle('button_alt-active');
-        this._cashButton.classList.toggle('button_alt-active');
-    }
-
-};
