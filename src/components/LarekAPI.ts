@@ -1,4 +1,4 @@
-import { Api } from './base/api';
+import { Api } from './base/Api';
 import {IOrderForm, IOrderResult, ICard, ApiListResponse, ILarekAPI, IAppState} from "../types";
 import { AppState } from './AppData';
 
