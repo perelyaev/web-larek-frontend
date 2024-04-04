@@ -1,6 +1,6 @@
 // import { IOrderForm } from '../types';
 import { IContactsFormView, TContactsActions, TContactsForm } from '../types';
-import { IEvents } from './base/Events';
+import { IEvents } from './Events';
 import { Form } from './Form';
 
 export class Contacts extends Form<TContactsForm> implements IContactsFormView {

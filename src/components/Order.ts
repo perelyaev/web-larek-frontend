@@ -1,6 +1,6 @@
 import { IOrderView, TOrderActions, TOrderForm } from '../types';
 import { Form } from './Form';
-import { IEvents } from './base/Events';
+import { IEvents } from './Events';
 
 export class Order extends Form<TOrderForm> implements IOrderView {
 	protected _cash: HTMLButtonElement;

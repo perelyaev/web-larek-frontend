@@ -1,5 +1,5 @@
 import './scss/styles.scss';
-import { EventEmitter } from './components/base/Events';
+import { EventEmitter } from './components/Events';
 import { API_URL, CDN_URL} from './utils/constants';
 import { StoreAPI } from './components/StoreAPI';
 import { AppState } from './components/AppData';

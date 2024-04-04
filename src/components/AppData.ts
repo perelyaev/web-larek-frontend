@@ -8,7 +8,7 @@ import {
 	IAppState,
 } from '../types';
 import { Model } from './base/Model';
-import { IEvents } from './base/Events';
+import { IEvents } from './Events';
 
 export class AppState implements IAppState {
 	catalog: ICatalogItem[];
