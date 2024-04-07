@@ -2,7 +2,7 @@ import { IOrderView, TOrderActions, TOrderForm } from '../types';
 import { Form } from './Form';
 import { IEvents } from './base/Events';
 
-export class Order extends Form<TOrderForm> implements IOrderView {
+export class OrderForm extends Form<TOrderForm> implements IOrderView {
 	protected _cash: HTMLButtonElement;
 	protected _card: HTMLButtonElement;
 	protected _paymentTypes: HTMLElement[];
@@ -43,5 +43,9 @@ export class Order extends Form<TOrderForm> implements IOrderView {
 			this.removeStyleClass(button, 'button_alt-active')
 		);
 		this.addStyleClass(this.container[paymentType], 'button_alt-active');
+	}
+
+	getPaymentType(paymentType: HTMLElement) {
+		return paymentType.getAttribute('name');
 	}
 }

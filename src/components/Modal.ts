@@ -37,7 +37,7 @@ export class Modal extends Component<TModalData> implements IModalView {
 		this.events.emit('modal:close');
 	}
 
-	toggleBasketBtn(state: boolean) {
+	toggleButton(state: boolean) {
 		this.setDisabled(this._nextButton, state);
 	}
 

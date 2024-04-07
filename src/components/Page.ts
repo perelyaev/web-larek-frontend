@@ -27,7 +27,7 @@ export class Page extends Component<TPage> implements IPageView {
 	}
 
 	set locked(value: boolean) {
-		if (value) this._wrapper.classList.add('page__wrapper_locked');
-		else this._wrapper.classList.remove('page__wrapper_locked');
+		if (value) this.addStyleClass(this._wrapper, 'page__wrapper_locked');
+		else this.removeStyleClass(this._wrapper, 'page__wrapper_locked');
 	}
 }

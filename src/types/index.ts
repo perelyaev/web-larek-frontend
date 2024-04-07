@@ -9,6 +9,7 @@ export interface ICatalogItem {
 	category: string;
 	price: number | null;
 	status: boolean;
+	// index?: number;
 }
 
 export interface IBasketItem {
@@ -105,6 +106,7 @@ export type TCard = {
 	description?: string;
 	button: HTMLButtonElement;
 	statusBtn: boolean;
+	index: number;
 };
 
 export interface ICardView {
@@ -141,7 +143,6 @@ export interface IBasketView {
 	items: HTMLElement[];
 	price: number;
 	setOrderButton(value: number): void;
-	setOrderIndex(): void;
 }
 
 // Page View
@@ -174,7 +175,7 @@ export interface IModalView {
 	content: HTMLElement;
 	open(): void;
 	close(): void;
-	toggleBasketBtn(state: boolean): void;
+	toggleButton(state: boolean): void;
 	render(data: TModalData): HTMLElement;
 }
 

@@ -9,8 +9,8 @@ import { ICatalogItem, IBasketItem, TUpdateCounter } from './types';
 import { Card as CatalogItem, Card as BasketItem } from './components/Card';
 import { Modal } from './components/Modal';
 import { Basket } from './components/Basket';
-import { Order } from './components/Order';
-import { Contacts } from './components/Contacts';
+import { OrderForm } from './components/Order';
+import { ContactsForm } from './components/Contacts';
 import { Success } from './components/Success';
 
 const events = new EventEmitter();
@@ -34,6 +34,12 @@ const successTemplate = ensureElement<HTMLTemplateElement>('#success');
 const basket = new Basket(cloneTemplate(basketTemplate), {
 	onClick: () => events.emit('order:open'),
 });
+const success = new Success(cloneTemplate(successTemplate), {
+	onClick: () => {
+		events.emit('items:changed');
+		modal.close();
+	},
+});
 
 // show items on main page
 events.on('items:changed', () => {
@@ -56,7 +62,7 @@ events.on('preview:changed', (item: ICatalogItem) => {
 	const card = new CatalogItem(cloneTemplate(cardPreviewTemplate), {
 		onClick: () => events.emit('basket:changed', item),
 	});
-	card.button.disabled = item.status;
+	card.toggleButton(item.status, item.price); 
 	card.setCategoryCard(item.category);
 	modal.render({
 		content: card.render({
@@ -79,24 +85,24 @@ events.on('basket:open', () => {
 
 // show cart item in shopping cart
 events.on('basket:preview', (basketState: TUpdateCounter) => {
-	basket.items = appData.basketItems.map((item) => {
+	basket.items = appData.basketItems.map((item, idx) => {
 		const basketItem = new BasketItem(cloneTemplate(itemBasketTemplate), {
 			onClick: () => events.emit('basket:remove', item),
 		});
 		return basketItem.render({
 			title: item.title,
 			price: item.price,
+			index: idx + 1
 		});
 	});
 	basket.setOrderButton(basketState.count);
-	basket.setOrderIndex();
 });
 
 // add item to cart
 events.on('basket:changed', (item: ICatalogItem) => {
 	if (!item.status) {
 		appData.addItemBasket(item);
-		modal.toggleBasketBtn(item.status);
+		modal.toggleButton(item.status);
 	}
 });
 
@@ -107,9 +113,9 @@ events.on('basket:remove', (item: IBasketItem) => {
 });
 
 // picking payment type when making order
-const order = new Order(cloneTemplate(orderTemplate), events, {
+const order = new OrderForm(cloneTemplate(orderTemplate), events, {
 	onClickPayment: (event: Event) => {
-		const paymentType = (event.target as HTMLElement).getAttribute('name');
+		const paymentType = order.getPaymentType(event.target as HTMLElement);
 		appData.setPaymentType(paymentType);
 		order.setStyleBorder(paymentType);
 		order.setNextToggle(appData.isOrderValid());
@@ -157,7 +163,7 @@ events.on('order:submit', () => {
 });
 
 // placing an order
-const contacts = new Contacts(cloneTemplate(contactsTemplate), events, {
+const contacts = new ContactsForm(cloneTemplate(contactsTemplate), events, {
 	onClick: () => {
 		appData.createOrder();
 		api
@@ -184,12 +190,6 @@ events.on(/^contacts\..*:change/, () => {
 
 // listening for successful server response
 events.on('success', () => {
-	const success = new Success(cloneTemplate(successTemplate), {
-		onClick: () => {
-			events.emit('items:changed');
-			modal.close();
-		},
-	});
 	modal.render({
 		content: success.render({
 			totalPrice: appData.getTotal(),
@@ -210,4 +210,4 @@ events.on('basket:updateCounter', (count: TUpdateCounter) => {
 api
 	.getCatalogList()
 	.then(appData.setCatalog.bind(appData))
-	.catch((error) => console.log(error));
+	.catch(console.error);

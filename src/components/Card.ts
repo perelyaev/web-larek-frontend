@@ -1,6 +1,7 @@
 import { Component } from './base/Component';
 import { ensureElement } from '../utils/utils';
 import { TCardActions, ICardView, TCard, TDictCategoryCard } from '../types';
+import { isNull } from 'lodash';
 
 export class Card extends Component<TCard> implements ICardView {
 	protected _title: HTMLElement;
@@ -10,6 +11,7 @@ export class Card extends Component<TCard> implements ICardView {
 	protected _description?: HTMLParagraphElement;
 	protected _button?: HTMLButtonElement;
 	protected _statusBtn: boolean;
+	protected _index?: HTMLElement;
 
 	constructor(
 		container: HTMLElement,
@@ -29,6 +31,7 @@ export class Card extends Component<TCard> implements ICardView {
 			`.${blockName}__text`
 		) as HTMLParagraphElement;
 		this._button = container.querySelector(`.${blockName}__button`);
+		this._index = container.querySelector('.basket__item-index');
 		if (actions?.onClick) {
 			if (this._button) {
 				this._button.addEventListener('click', actions.onClick);
@@ -71,6 +74,10 @@ export class Card extends Component<TCard> implements ICardView {
 		else this.setPrice(this._price, `${value} синапсов`);
 	}
 
+	set index(value: number) {
+		this.setText(this._index, String(value));
+	}
+
 	get category(): string {
 		return this._category.textContent || '';
 	}
@@ -87,26 +94,31 @@ export class Card extends Component<TCard> implements ICardView {
 		this.setDescription(this._description, value);
 	}
 
-	protected setImage(element: HTMLImageElement, src: string, alt?: string) {
-		if (element) {
-			element.src = src;
-			if (alt) element.alt = alt;
-		}
-	}
-
 	protected setPrice(element: HTMLSpanElement, value: unknown) {
-		if (element) element.textContent = String(value);
+		if (element) this.setText(element, String(value));
 	}
 
 	protected setCategory(element: HTMLSpanElement, value: unknown) {
-		if (element) element.textContent = String(value);
+		if (element) this.setText(element, String(value));
 	}
 
 	protected setDescription(element: HTMLSpanElement, value: unknown) {
-		if (element) element.textContent = String(value);
+		if (element) this.setText(element, String(value));
 	}
 
 	setCategoryCard(value: string) {
 		this.addStyleClass(this._category, TDictCategoryCard.get(value));
+	}
+
+	toggleButton(status: boolean, price: number) {
+		if (status) {
+			this.setDisabled(this._button, status)
+			this.setText(this._button, 'Уже в корзине')
+		} else {
+			if (isNull(price)) {
+				this.setDisabled(this._button, !status)
+				this.setText(this._button, 'Нельзя купить')
+			}
+		}
 	}
 }

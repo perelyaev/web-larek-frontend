@@ -25,7 +25,7 @@ export class AppState implements IAppState {
 	formErrors: TFormErrors = {};
 	basketState: Set<string>;
 	paymentState: TPaymentState;
-	contactsState: TContactsState;
+	contactsState: TContactsState; 
 
 	constructor(protected events: IEvents) {
 		this.basketState = new Set();
